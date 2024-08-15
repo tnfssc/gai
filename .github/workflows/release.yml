@@ -25,18 +25,9 @@ jobs:
         uses: actions/cache@v4
         with:
           path: ~/.asdf
-          key: ${{ runner.os }}-asdf-${{ hashFiles('**/.tool-versions') }}
+          key: ${{ runner.os }}-asdf-${{ hashFiles('**/.tool-versions') }}-${{ hashFiles('**/go.sum') }}
           restore-keys: |
             ${{ runner.os }}-asdf-
-
-      - name: Cache golang
-        uses: actions/cache@v4
-        with:
-          path: |
-            ~/.cache/go-build
-          key: ${{ runner.os }}-go-${{ hashFiles('**/go.sum') }}
-          restore-keys: |
-            ${{ runner.os }}-go-
 
       - name: Install asdf & tools
         uses: asdf-vm/actions/install@v3
