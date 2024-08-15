@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 	"os"
+	"runtime"
 	"strings"
 
 	"github.com/atotto/clipboard"
@@ -24,16 +25,21 @@ func main() {
 
 	apiKey := os.Getenv("GROQ_API_KEY")
 	if apiKey == "" {
-		log.Fatal().Msg("GROQ_API_KEY is not set")
+		log.Fatal().Msg("GROQ_API_KEY is not set. Get one from https://console.groq.com/keys.")
 	}
 	shell := os.Getenv("SHELL")
 	if shell == "" {
-		log.Fatal().Msg("SHELL is not set")
+		log.Fatal().Msg("Could not determine shell. Set SHELL environment variable.")
 	}
+	_shell := strings.Split(shell, "/")
+	shell = _shell[len(_shell)-1]
+
+	kernel := runtime.GOOS
 
 	prompt := fmt.Sprintf(`Only reply with the single line command surrounded by three backticks. It must be able to be directly run in the target shell. Do not include any other text.
-Make sure the command runs on %s shell.
-The prompt: %s`, shell, strings.Join(os.Args[1:], " "))
+Make sure the command runs on %s shell on %s kernel.
+The prompt: %s`, shell, kernel, strings.Join(os.Args[1:], " "))
+	log.Debug().Msg(prompt)
 
 	llm, err := openai.New(
 		openai.WithModel("gemma2-9b-it"),
