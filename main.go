@@ -14,7 +14,14 @@ import (
 	"github.com/tmc/langchaingo/llms/openai"
 )
 
+var version string
+
 func main() {
+	if (os.Args[1] == "version") {
+		fmt.Println(version)
+		return
+	}
+
 	zerolog.TimeFieldFormat = zerolog.TimeFormatUnix
 	debug := os.Getenv("DEBUG")
 	if debug == "true" {
