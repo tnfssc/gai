@@ -8,7 +8,7 @@ on:
 
 jobs:
   build:
-    runs-on: ubuntu-20.04
+    runs-on: ubuntu-22.04
     permissions:
       contents: write
 
@@ -32,10 +32,23 @@ jobs:
       - name: Install asdf & tools
         uses: asdf-vm/actions/install@v3
 
-      - name: Build
-        uses: wangyoucao577/go-release-action@v1
+      - name: Build the executable
+        run: make build
+
+      - name: Package the executable
+        run: make pack
+
+      - name: Name the executable
+        id: setbinary
+        run: |
+          if [ "${{ matrix.goos }}" = "windows" ]; then
+            echo "binary_name=gai.exe" >> $GITHUB_OUTPUT
+          else
+            echo "binary_name=gai" >> $GITHUB_OUTPUT
+          fi
+
+      - name: Upload the executable
+        uses: actions/upload-artifact@v4
         with:
-          github_token: ${{ secrets.GITHUB_TOKEN }}
-          goos: ${{ matrix.goos }}
-          goarch: ${{ matrix.goarch }}
-          ldflags: -s -w -X main.version=${{ github.ref }}
+          name: gai-${{ matrix.goos }}-${{ matrix.goarch }}
+          path: ${{ steps.setbinary.outputs.binary_name }}
