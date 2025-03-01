@@ -21,7 +21,7 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
-      - name: Cache asdf
+      - name: Cache asdf and Go modules cache
         uses: actions/cache@v4
         with:
           path: ~/.asdf
@@ -29,34 +29,27 @@ jobs:
           restore-keys: |
             ${{ runner.os }}-asdf-
 
-      - name: Cache Go modules
-        uses: actions/cache@v4
-        with:
-          path: ~/go/pkg/mod
-          key: ${{ runner.os }}-go-${{ hashFiles('**/go.sum') }}
-          restore-keys: |
-            ${{ runner.os }}-go-
-
       - name: Install asdf & tools
         uses: asdf-vm/actions/install@v3
 
       - name: Build the executable
-        run: make build
+        env:
+          GOOS: ${{ matrix.goos }}
+          GOARCH: ${{ matrix.goarch }}
+        run: go build -ldflags="-s -w -X main.version=develop" -o gai-${{ matrix.goos }}-${{ matrix.goarch }}
+
+      - name: Rename the executable
+        if: ${{ matrix.goos }} == "windows"
+        run: mv gai-${{ matrix.goos }}-${{ matrix.goarch }} gai-${{ matrix.goos }}-${{ matrix.goarch }}.exe
 
       - name: Package the executable
-        run: make pack
+        run: upx --best --lzma gai*
 
-      - name: Name the executable
-        id: setbinary
-        run: |
-          if [ "${{ matrix.goos }}" = "windows" ]; then
-            echo "binary_name=gai.exe" >> $GITHUB_OUTPUT
-          else
-            echo "binary_name=gai" >> $GITHUB_OUTPUT
-          fi
-
-      - name: Upload the executable
-        uses: actions/upload-artifact@v4
+      - name: Release
+        uses: softprops/action-gh-release@v2
+        if: startsWith(github.ref, 'refs/tags/')
         with:
-          name: gai-${{ matrix.goos }}-${{ matrix.goarch }}
-          path: ${{ steps.setbinary.outputs.binary_name }}
+          preserve_order: true
+          files: |
+            gai-${{ matrix.goos }}-${{ matrix.goarch }}
+            gai-${{ matrix.goos }}-${{ matrix.goarch }}.exe
