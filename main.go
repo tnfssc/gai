@@ -17,6 +17,11 @@ import (
 var version string
 
 func main() {
+	if len(os.Args) == 1 {
+		fmt.Println("Usage:\tgai [PROMPT]")
+		return
+	}
+
 	if os.Args[1] == "version" {
 		fmt.Println(version)
 		return

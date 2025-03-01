@@ -1,21 +1,33 @@
 # gai
 
-This is a simple command line tool that uses [groqcloud](https://console.groq.com/keys) to generate a command line command that can be run on the target operating system.
+⚡ The fastest AI command generator for CLI
 
-## Env
+[![Release](https://github.com/tnfssc/gai/actions/workflows/release.yml/badge.svg)](https://github.com/tnfssc/gai/actions/workflows/release.yml)
+
+## Installation
+
+Using `go install`
 
 ```bash
-GROQ_API_KEY=your-api-key
+go install github.com/tnfssc/gai@latest
+```
+
+Or download the binary directly from [Releases](https://github.com/tnfssc/gai/releases/latest)
+
+## Setup
+
+Get your key from [groqcloud](https://console.groq.com/keys)
+
+Add it in your `~/.bashrc` file as follows
+
+```bash
+export GROQ_API_KEY=your-api-key
 ```
 
 ## Usage
 
 ```bash
 ./gai list all files that contain the word "hello"
-```
-
-## Installation
-
-```bash
-go install github.com/tnfssc/gai@latest
+# or
+gai list all files that contain the word "hello" # if installed globally
 ```
