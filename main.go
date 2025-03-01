@@ -17,7 +17,7 @@ import (
 var version string
 
 func main() {
-	if (os.Args[1] == "version") {
+	if os.Args[1] == "version" {
 		fmt.Println(version)
 		return
 	}
@@ -49,7 +49,7 @@ The prompt: %s`, shell, kernel, strings.Join(os.Args[1:], " "))
 	log.Debug().Msg(prompt)
 
 	llm, err := openai.New(
-		openai.WithModel("gemma2-9b-it"),
+		openai.WithModel("llama-3.3-70b-specdec"),
 		openai.WithBaseURL("https://api.groq.com/openai/v1"),
 		openai.WithToken(apiKey),
 	)
@@ -60,8 +60,9 @@ The prompt: %s`, shell, kernel, strings.Join(os.Args[1:], " "))
 	if err != nil {
 		log.Fatal().Err(err).Msg("Failed to generate completion")
 	}
-	fmt.Println(strings.TrimSpace(strings.Trim(completion, "`")))
-	if err := clipboard.WriteAll(string(completion)); err != nil {
+	completion = fmt.Sprintln(strings.TrimSpace(strings.Trim(completion, "`")))
+	fmt.Println(completion)
+	if err := clipboard.WriteAll(completion); err != nil {
 		log.Debug().Err(err).Msg("Failed to copy to clipboard")
 	}
 }
