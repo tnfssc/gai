@@ -43,7 +43,7 @@ jobs:
         run: mv gai-${{ matrix.goos }}-${{ matrix.goarch }} gai-${{ matrix.goos }}-${{ matrix.goarch }}.exe
 
       - name: Package the executable
-        if: ${{ matrix.goos != 'windows' && matrix.goarch != 'arm64' }}
+        if: ${{ ! (matrix.goos == 'windows' && matrix.goarch == 'arm64') }}
         run: upx --best --lzma --force-macos gai*
 
       - name: Release
