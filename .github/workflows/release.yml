@@ -39,11 +39,11 @@ jobs:
         run: go build -ldflags="-s -w -X main.version=develop" -o gai-${{ matrix.goos }}-${{ matrix.goarch }}
 
       - name: Rename the executable
-        if: ${{ matrix.goos }} == "windows"
+        if: ${{ matrix.goos == 'windows' }}
         run: mv gai-${{ matrix.goos }}-${{ matrix.goarch }} gai-${{ matrix.goos }}-${{ matrix.goarch }}.exe
 
       - name: Package the executable
-        if: ${{ matrix.goos != "windows" && matrix.goarch != "arm64" }}
+        if: ${{ matrix.goos != 'windows' && matrix.goarch != 'arm64' }}
         run: upx --best --lzma --force-macos gai*
 
       - name: Release
