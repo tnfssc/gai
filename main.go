@@ -4,7 +4,6 @@ import (
 	"context"
 	"fmt"
 	"os"
-	"runtime"
 	"strings"
 
 	"github.com/atotto/clipboard"
@@ -12,6 +11,8 @@ import (
 	"github.com/rs/zerolog/log"
 	"github.com/tmc/langchaingo/llms"
 	"github.com/tmc/langchaingo/llms/openai"
+
+	pkg_os "github.com/tnfssc/gai/pkg/os"
 )
 
 var version string
@@ -46,7 +47,7 @@ func main() {
 	_shell := strings.Split(shell, "/")
 	shell = _shell[len(_shell)-1]
 
-	kernel := runtime.GOOS
+	kernel := pkg_os.OS
 
 	prompt := fmt.Sprintf(`Only reply with the single line command surrounded by three backticks. It must be able to be directly run in the target shell. Do not include any other text.
 Make sure the command runs on %s shell on %s kernel.
