@@ -63,6 +63,6 @@ The prompt: %s`, shell, kernel, strings.Join(os.Args[1:], " "))
 
 	if err := clipboard.WriteAll(completion); err == nil {
 		fmt.Println()
-		fmt.Println(string("\033[32m"), "Copied \uf05d")
+		fmt.Println(string("\033[32m"), "Copied \uf05d", string("\033[0m"))
 	}
 }
