@@ -44,3 +44,10 @@ Use standard input
 ```bash
 cat /etc/hosts | gai block youtube.com
 ```
+
+Use Docker
+
+```bash
+docker run -e GROQ_API_KEY=$GROQ_API_KEY ghcr.io/tnfssc/gai:develop list all files that contain the word "hello"
+# Copy to clipboard fails if you use Docker
+```
