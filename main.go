@@ -276,7 +276,7 @@ Make sure the command runs on %s shell on %s kernel.
 
 	completion, err := generateCommand(prompt, apiKey)
 	if err != nil {
-		fmt.Println("Failed to generate command")
+		fmt.Println("Failed to generate command", err)
 		os.Exit(1)
 	}
 
