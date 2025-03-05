@@ -6,13 +6,27 @@
 
 ## Installation
 
-Using `go install`
+### Using bash (Linux and macOS only)
+
+```bash
+bash <(curl https://raw.githubusercontent.com/tnfssc/gai/refs/heads/develop/install.sh)
+```
+
+### Using powershell (Windows, macOS and Linux)
+
+```bash
+pwsh -c "irm https://raw.githubusercontent.com/tnfssc/gai/refs/heads/develop/install.ps1 | iex"
+```
+
+### Using `go install`
 
 ```bash
 go install github.com/tnfssc/gai@latest
 ```
 
-Or download the binary directly from [Releases](https://github.com/tnfssc/gai/releases/latest)
+### Direct download
+
+Download the binary directly from [Releases](https://github.com/tnfssc/gai/releases/latest)
 
 ## Setup
 
