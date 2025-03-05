@@ -16,6 +16,12 @@ Or download the binary directly from [Releases](https://github.com/tnfssc/gai/re
 
 ## Setup
 
+### Automatic
+
+Follow `gai`'s instructions when you use it for the first time
+
+### Manual
+
 Get your key from [groqcloud](https://console.groq.com/keys)
 
 Add it in your `~/.bashrc` file as follows

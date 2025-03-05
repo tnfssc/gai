@@ -25,6 +25,53 @@ type CacheEntry struct {
 	Timestamp time.Time `json:"timestamp"`
 }
 
+type Config struct {
+	GroqAPIKey string `json:"groq_api_key"`
+}
+
+func getConfigDir() string {
+	var configDir string
+	if runtime.GOOS == "windows" {
+		configDir = filepath.Join(os.Getenv("APPDATA"), "gai")
+	} else {
+		configDir = filepath.Join(os.Getenv("HOME"), ".config", "gai")
+	}
+	if _, err := os.Stat(configDir); os.IsNotExist(err) {
+		os.MkdirAll(configDir, 0700)
+	}
+	return configDir
+}
+
+func loadConfig() (Config, error) {
+	configDir := getConfigDir()
+	configFile := filepath.Join(configDir, "gai.config.json")
+	var config Config
+	f, err := os.Open(configFile)
+	if err != nil {
+		if os.IsNotExist(err) {
+			return Config{}, nil
+		}
+		return Config{}, err
+	}
+	defer f.Close()
+
+	if err := json.NewDecoder(f).Decode(&config); err != nil {
+		return Config{}, err
+	}
+	return config, nil
+}
+
+func saveConfig(config Config) error {
+	configDir := getConfigDir()
+	configFile := filepath.Join(configDir, "gai.config.json")
+	f, err := os.Create(configFile)
+	if err != nil {
+		return err
+	}
+	defer f.Close()
+	return json.NewEncoder(f).Encode(config)
+}
+
 func getCacheDir() string {
 	cacheDir := os.TempDir()
 	return filepath.Join(cacheDir, "gai-cache")
@@ -144,6 +191,20 @@ func getShell() string {
 	return parts[len(parts)-1]
 }
 
+func testAPIKey(apiKey string) error {
+	llm, err := openai.New(
+		openai.WithModel("llama-3.3-70b-specdec"),
+		openai.WithBaseURL("https://api.groq.com/openai/v1"),
+		openai.WithToken(apiKey),
+	)
+	if err != nil {
+		return err
+	}
+
+	_, err = llms.GenerateFromSinglePrompt(context.Background(), llm, "Say hello")
+	return err
+}
+
 func main() {
 	if len(os.Args) == 1 {
 		fmt.Println("Missing prompt")
@@ -157,8 +218,32 @@ func main() {
 	}
 
 	apiKey := os.Getenv("GROQ_API_KEY")
+	config, _ := loadConfig()
+
 	if apiKey == "" {
-		fmt.Println("GROQ_API_KEY is not set. Get one from https://console.groq.com/keys")
+		if config.GroqAPIKey != "" {
+			apiKey = config.GroqAPIKey
+		} else {
+			fmt.Print("GROQ_API_KEY is not set in env or config. You can get one from https://console.groq.com/keys. Please enter your GROQ_API_KEY: ")
+			reader := bufio.NewReader(os.Stdin)
+			inputAPIKey, _ := reader.ReadString('\n')
+			apiKey = strings.TrimSpace(inputAPIKey)
+
+			if err := testAPIKey(apiKey); err != nil {
+				fmt.Println("GROQ_API_KEY is invalid:", err)
+				fmt.Println("Please check your API key or get a new one from https://console.groq.com/keys")
+				os.Exit(1)
+			}
+
+			config.GroqAPIKey = apiKey
+			if err := saveConfig(config); err != nil {
+				fmt.Println("Failed to save GROQ_API_KEY to config file.")
+			}
+		}
+	}
+
+	if apiKey == "" {
+		fmt.Println("GROQ_API_KEY is required. Get one from https://console.groq.com/keys")
 		os.Exit(1)
 	}
 
