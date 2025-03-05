@@ -52,19 +52,19 @@ curl -Lo gai "$DOWNLOAD_URL"
 
 chmod +x gai
 
-INSTALL_DIR="$HOME/bin"
+INSTALL_DIR="$HOME/.local/bin"
 mkdir -p "$INSTALL_DIR"
 
 if [ -d "$INSTALL_DIR" ]; then
   mv gai "$INSTALL_DIR"
   echo "gai installed to $INSTALL_DIR"
   echo "Please ensure '$INSTALL_DIR' is in your PATH environment variable."
-  if grep -q "export PATH=\"\$HOME/bin:\$PATH\"" ~/.bashrc; then
-    echo "~/.bashrc already configured for \$HOME/bin"
-  elif grep -q "export PATH=\"\$HOME/bin:\$PATH\"" ~/.zshrc; then
-    echo "~/.zshrc already configured for \$HOME/bin"
+  if grep -q "export PATH=\"\$HOME/.local/bin:\$PATH\"" ~/.bashrc; then
+    echo "~/.bashrc already configured for \$HOME/.local/bin"
+  elif grep -q "export PATH=\"\$HOME/.local/bin:\$PATH\"" ~/.zshrc; then
+    echo "~/.zshrc already configured for \$HOME/.local/bin"
   else
-    echo "Add 'export PATH=\"\$HOME/bin:\$PATH\"' to your ~/.bashrc or ~/.zshrc and restart your terminal."
+    echo "Add 'export PATH=\"\$HOME/.local/bin:\$PATH\"' to your ~/.bashrc or ~/.zshrc and restart your terminal."
   fi
 
 else
