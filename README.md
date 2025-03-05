@@ -32,3 +32,9 @@ export GROQ_API_KEY=your-api-key
 gai list all files that contain the word "hello" # if installed globally
 # the command is already copied to your clipboard, Ctrl+Shift+V away immediately
 ```
+
+Use standard input
+
+```bash
+cat /etc/hosts | gai block youtube.com
+```

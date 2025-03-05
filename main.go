@@ -1,6 +1,7 @@
 package main
 
 import (
+	"bufio"
 	"context"
 	"fmt"
 	"os"
@@ -41,9 +42,40 @@ func main() {
 
 	kernel := runtime.GOOS
 
-	prompt := fmt.Sprintf(`Only reply with the single line command surrounded by three backticks. It must be able to be directly run in the target shell. Do not include any other text.
+	stdinText := ""
+	fi, _ := os.Stdin.Stat()
+	if (fi.Mode() & os.ModeCharDevice) == 0 {
+		scanner := bufio.NewScanner(os.Stdin)
+		for scanner.Scan() {
+			stdinText += (scanner.Text() + "\n")
+		}
+		if err := scanner.Err(); err != nil {
+			stdinText = ""
+		}
+		stdinText = strings.TrimSpace(stdinText)
+		if len(stdinText) > 0 {
+			stdinText = fmt.Sprintf(`
+<Additional Context Start>
+%s
+<Additional Context End>
+`, stdinText)
+		}
+	}
+
+	prompt := fmt.Sprintf(`
+<Instructions Start>
+Only reply with the single line command surrounded by three backticks.
+It must be able to be directly run in the target shell.
+Do not include any other text.
 Make sure the command runs on %s shell on %s kernel.
-The prompt: %s`, shell, kernel, strings.Join(os.Args[1:], " "))
+<Instructions End>
+
+%s
+
+<Prompt Start>
+%s
+<Prompt End>
+`, shell, kernel, stdinText, strings.Join(os.Args[1:], " "))
 
 	llm, _ := openai.New(
 		openai.WithModel("llama-3.3-70b-specdec"),
