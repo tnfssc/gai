@@ -140,7 +140,7 @@ func writeToClipboard(text string) {
 
 func generateCommand(prompt string, apiKey string) (string, error) {
 	llm, err := openai.New(
-		openai.WithModel("llama-3.3-70b-specdec"),
+		openai.WithModel("meta-llama/llama-4-maverick-17b-128e-instruct"),
 		openai.WithBaseURL("https://api.groq.com/openai/v1"),
 		openai.WithToken(apiKey),
 	)
