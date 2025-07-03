@@ -26,7 +26,9 @@ type CacheEntry struct {
 }
 
 type Config struct {
-	GroqAPIKey string `json:"groq_api_key"`
+	GroqAPIKey      string `json:"groq_api_key"`
+	OpenRouterAPIKey string `json:"openrouter_api_key"`
+	Provider         string `json:"provider"` // "groq" or "openrouter"
 }
 
 func getConfigDir() string {
@@ -138,12 +140,50 @@ func writeToClipboard(text string) {
 	}
 }
 
-func generateCommand(prompt string, apiKey string) (string, error) {
-	llm, err := openai.New(
-		openai.WithModel("meta-llama/llama-4-maverick-17b-128e-instruct"),
-		openai.WithBaseURL("https://api.groq.com/openai/v1"),
-		openai.WithToken(apiKey),
-	)
+func testAPIKey(apiKey string, provider string) error {
+	var llm llms.Model
+	var err error
+	
+	if provider == "openrouter" {
+		llm, err = openai.New(
+			openai.WithModel("deepseek/deepseek-chat:free"),
+			openai.WithBaseURL("https://openrouter.ai/api/v1"),
+			openai.WithToken(apiKey),
+		)
+	} else {
+		llm, err = openai.New(
+			openai.WithModel("llama-3.3-70b-specdec"),
+			openai.WithBaseURL("https://api.groq.com/openai/v1"),
+			openai.WithToken(apiKey),
+		)
+	}
+	
+	if err != nil {
+		return err
+	}
+
+	_, err = llms.GenerateFromSinglePrompt(context.Background(), llm, "Say hello")
+	return err
+}
+
+func generateCommand(prompt string, apiKey string, provider string) (string, error) {
+	var llm llms.Model
+	var err error
+	
+	if provider == "openrouter" {
+		llm, err = openai.New(
+			openai.WithModel("deepseek/deepseek-chat:free"),
+			openai.WithBaseURL("https://openrouter.ai/api/v1"),
+			openai.WithToken(apiKey),
+		)
+	} else {
+		llm, err = openai.New(
+			openai.WithModel("meta-llama/llama-4-maverick-17b-128e-instruct"),
+			openai.WithBaseURL("https://api.groq.com/openai/v1"),
+			openai.WithToken(apiKey),
+		)
+	}
+	
 	if err != nil {
 		return "", err
 	}
@@ -191,24 +231,11 @@ func getShell() string {
 	return parts[len(parts)-1]
 }
 
-func testAPIKey(apiKey string) error {
-	llm, err := openai.New(
-		openai.WithModel("llama-3.3-70b-specdec"),
-		openai.WithBaseURL("https://api.groq.com/openai/v1"),
-		openai.WithToken(apiKey),
-	)
-	if err != nil {
-		return err
-	}
-
-	_, err = llms.GenerateFromSinglePrompt(context.Background(), llm, "Say hello")
-	return err
-}
-
 func main() {
 	if len(os.Args) == 1 {
 		fmt.Println("Missing prompt")
 		fmt.Println("Usage:\tgai [PROMPT]")
+		fmt.Println("       \tgai provider [groq|openrouter] - Switch AI provider")
 		os.Exit(1)
 	}
 
@@ -217,34 +244,95 @@ func main() {
 		os.Exit(0)
 	}
 
-	apiKey := os.Getenv("GROQ_API_KEY")
 	config, _ := loadConfig()
 
-	if apiKey == "" {
-		if config.GroqAPIKey != "" {
-			apiKey = config.GroqAPIKey
-		} else {
-			fmt.Print("GROQ_API_KEY is not set in env or config. You can get one from https://console.groq.com/keys. Please enter your GROQ_API_KEY: ")
-			reader := bufio.NewReader(os.Stdin)
-			inputAPIKey, _ := reader.ReadString('\n')
-			apiKey = strings.TrimSpace(inputAPIKey)
-
-			if err := testAPIKey(apiKey); err != nil {
-				fmt.Println("GROQ_API_KEY is invalid:", err)
-				fmt.Println("Please check your API key or get a new one from https://console.groq.com/keys")
-				os.Exit(1)
-			}
-
-			config.GroqAPIKey = apiKey
-			if err := saveConfig(config); err != nil {
-				fmt.Println("Failed to save GROQ_API_KEY to config file.")
-			}
+	// Handle provider switching
+	if os.Args[1] == "provider" {
+		if len(os.Args) < 3 {
+			fmt.Printf("Current provider: %s\n", config.Provider)
+			fmt.Println("Usage: gai provider [groq|openrouter]")
+			os.Exit(0)
 		}
+		
+		newProvider := strings.ToLower(os.Args[2])
+		if newProvider != "groq" && newProvider != "openrouter" {
+			fmt.Println("Invalid provider. Use 'groq' or 'openrouter'")
+			os.Exit(1)
+		}
+		
+		config.Provider = newProvider
+		if err := saveConfig(config); err != nil {
+			fmt.Println("Failed to save provider setting:", err)
+			os.Exit(1)
+		}
+		fmt.Printf("Provider switched to: %s\n", newProvider)
+		os.Exit(0)
 	}
 
-	if apiKey == "" {
-		fmt.Println("GROQ_API_KEY is required. Get one from https://console.groq.com/keys")
-		os.Exit(1)
+	// Set default provider if not set
+	if config.Provider == "" {
+		config.Provider = "groq"
+		saveConfig(config)
+	}
+
+	var apiKey string
+	
+	if config.Provider == "openrouter" {
+		apiKey = os.Getenv("OPENROUTER_API_KEY")
+		if apiKey == "" {
+			if config.OpenRouterAPIKey != "" {
+				apiKey = config.OpenRouterAPIKey
+			} else {
+				fmt.Print("OPENROUTER_API_KEY is not set in env or config. You can get one from https://openrouter.ai/keys. Please enter your OPENROUTER_API_KEY: ")
+				reader := bufio.NewReader(os.Stdin)
+				inputAPIKey, _ := reader.ReadString('\n')
+				apiKey = strings.TrimSpace(inputAPIKey)
+
+				if err := testAPIKey(apiKey, "openrouter"); err != nil {
+					fmt.Println("OPENROUTER_API_KEY is invalid:", err)
+					fmt.Println("Please check your API key or get a new one from https://openrouter.ai/keys")
+					os.Exit(1)
+				}
+
+				config.OpenRouterAPIKey = apiKey
+				if err := saveConfig(config); err != nil {
+					fmt.Println("Failed to save OPENROUTER_API_KEY to config file.")
+				}
+			}
+		}
+
+		if apiKey == "" {
+			fmt.Println("OPENROUTER_API_KEY is required. Get one from https://openrouter.ai/keys")
+			os.Exit(1)
+		}
+	} else {
+		apiKey = os.Getenv("GROQ_API_KEY")
+		if apiKey == "" {
+			if config.GroqAPIKey != "" {
+				apiKey = config.GroqAPIKey
+			} else {
+				fmt.Print("GROQ_API_KEY is not set in env or config. You can get one from https://console.groq.com/keys. Please enter your GROQ_API_KEY: ")
+				reader := bufio.NewReader(os.Stdin)
+				inputAPIKey, _ := reader.ReadString('\n')
+				apiKey = strings.TrimSpace(inputAPIKey)
+
+				if err := testAPIKey(apiKey, "groq"); err != nil {
+					fmt.Println("GROQ_API_KEY is invalid:", err)
+					fmt.Println("Please check your API key or get a new one from https://console.groq.com/keys")
+					os.Exit(1)
+				}
+
+				config.GroqAPIKey = apiKey
+				if err := saveConfig(config); err != nil {
+					fmt.Println("Failed to save GROQ_API_KEY to config file.")
+				}
+			}
+		}
+
+		if apiKey == "" {
+			fmt.Println("GROQ_API_KEY is required. Get one from https://console.groq.com/keys")
+			os.Exit(1)
+		}
 	}
 
 	shell := getShell()
@@ -266,17 +354,16 @@ Make sure the command runs on %s shell on %s kernel.
 <Prompt End>
 `, shell, kernel, stdinText, strings.Join(os.Args[1:], " "))
 
-	promptHash := hashPrompt(prompt)
+	promptHash := hashPrompt(prompt + config.Provider) // Include provider in hash for separate caching
 	if cachedResponse, ok := loadCache(promptHash); ok {
-		fmt.Println()
-		fmt.Println("", cachedResponse)
+		fmt.Printf("\n[%s] %s\n", strings.ToUpper(config.Provider), cachedResponse)
 		writeToClipboard(cachedResponse)
 		return
 	}
 
-	completion, err := generateCommand(prompt, apiKey)
+	completion, err := generateCommand(prompt, apiKey, config.Provider)
 	if err != nil {
-		fmt.Println("Failed to generate command", err)
+		fmt.Printf("Failed to generate command using %s: %v\n", config.Provider, err)
 		os.Exit(1)
 	}
 
@@ -284,7 +371,6 @@ Make sure the command runs on %s shell on %s kernel.
 		fmt.Println("Failed to save cache")
 	}
 
-	fmt.Println()
-	fmt.Println("", completion)
+	fmt.Printf("\n[%s] %s\n", strings.ToUpper(config.Provider), completion)
 	writeToClipboard(completion)
 }
