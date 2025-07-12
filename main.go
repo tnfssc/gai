@@ -27,8 +27,10 @@ type CacheEntry struct {
 }
 
 type Config struct {
-	GroqAPIKey      string `json:"groq_api_key"`
-	OpenRouterAPIKey string `json:"openrouter_api_key"`
+	GroqAPIKey        string `json:"groq_api_key"`
+	OpenRouterAPIKey  string `json:"openrouter_api_key"`
+	DefaultProvider   string `json:"default_provider"`
+	DefaultModel      string `json:"default_model"`
 }
 
 func getConfigDir() string {
@@ -140,18 +142,22 @@ func writeToClipboard(text string) {
 	}
 }
 
-func generateCommand(prompt, provider, apiKey string) (string, error) {
-	var (
-		model   string
-		baseURL string
-	)
+func generateCommand(prompt, provider, model, apiKey string) (string, error) {
+	var baseURL string
+
+	if model == "" {
+		switch provider {
+		case "openrouter":
+			model = "deepseek/deepseek-chat:free"
+		default: // groq or any other default
+			model = "meta-llama/llama-4-maverick-17b-128e-instruct"
+		}
+	}
 
 	switch provider {
 	case "openrouter":
-		model = "deepseek/deepseek-chat:free"
 		baseURL = "https://openrouter.ai/api/v1"
 	default: // groq
-		model = "meta-llama/llama-4-maverick-17b-128e-instruct"
 		baseURL = "https://api.groq.com/openai/v1"
 	}
 
@@ -238,7 +244,7 @@ func testAPIKey(provider, apiKey string) error {
 func main() {
 	if len(os.Args) == 1 {
 		fmt.Println("Missing prompt")
-		fmt.Println("Usage:\tgai [--provider PROVIDER] [PROMPT]")
+		fmt.Println("Usage:\tgai [--provider PROVIDER] [--model MODEL] [PROMPT]")
 		os.Exit(1)
 	}
 
@@ -247,21 +253,63 @@ func main() {
 		os.Exit(0)
 	}
 
-	provider := "groq"
+	var providerFlag string
+	var modelFlag string
 
 	// Setup flags after handling version check
-	flag.StringVar(&provider, "provider", "groq", "llm provider: groq or openrouter")
+	flag.StringVar(&providerFlag, "provider", "", "llm provider: groq or openrouter (optional, default uses configured value)")
+	flag.StringVar(&modelFlag, "model", "", "llm model name (optional, default uses configured value)")
 	flag.Parse()
 
 	// Remaining args after flag parsing are the prompt tokens
 	promptArgs := flag.Args()
 	if len(promptArgs) == 0 {
 		fmt.Println("Missing prompt")
-		fmt.Println("Usage:\tgai [--provider PROVIDER] [PROMPT]")
+		fmt.Println("Usage:\tgai [--provider PROVIDER] [--model MODEL] [PROMPT]")
 		os.Exit(1)
 	}
 
 	config, _ := loadConfig()
+
+	// Determine provider
+	provider := strings.ToLower(providerFlag)
+	if provider == "" {
+		provider = strings.ToLower(config.DefaultProvider)
+	}
+	if provider == "" {
+		fmt.Print("Please select default provider (groq or openrouter): ")
+		reader := bufio.NewReader(os.Stdin)
+		inputProvider, _ := reader.ReadString('\n')
+		provider = strings.TrimSpace(strings.ToLower(inputProvider))
+	}
+	if provider != "groq" && provider != "openrouter" {
+		fmt.Println("Invalid provider. Must be 'groq' or 'openrouter'")
+		os.Exit(1)
+	}
+
+	// Determine model
+	model := modelFlag
+	if model == "" {
+		model = config.DefaultModel
+	}
+	if model == "" {
+		fmt.Printf("Please enter default model name for provider %s: ", provider)
+		reader := bufio.NewReader(os.Stdin)
+		inputModel, _ := reader.ReadString('\n')
+		model = strings.TrimSpace(inputModel)
+	}
+
+	// Persist provider/model if they were not previously set
+	if config.DefaultProvider == "" || config.DefaultProvider != provider {
+		config.DefaultProvider = provider
+	}
+	if config.DefaultModel == "" || config.DefaultModel != model {
+		config.DefaultModel = model
+	}
+
+	if err := saveConfig(config); err != nil {
+		fmt.Println("Failed to save configuration:", err)
+	}
 
 	var apiKey string
 
@@ -347,7 +395,7 @@ Make sure the command runs on %s shell on %s kernel.
 		return
 	}
 
-	completion, err := generateCommand(prompt, provider, apiKey)
+	completion, err := generateCommand(prompt, provider, model, apiKey)
 	if err != nil {
 		fmt.Println("Failed to generate command", err)
 		os.Exit(1)
