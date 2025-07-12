@@ -154,7 +154,7 @@ func generateCommand(prompt, provider, apiKey, model string) (string, error) {
 	default: // groq
 		baseURL = "https://api.groq.com/openai/v1"
 		if model == "" {
-			model = "llama-3.3-70b-versatile"
+			model = "meta-llama/llama-4-maverick-17b-128e-instruct"
 		}
 	}
 
@@ -221,7 +221,7 @@ func testAPIKey(provider, apiKey string) error {
 		model = "deepseek/deepseek-chat:free"
 		baseURL = "https://openrouter.ai/api/v1"
 	default: // groq
-		model = "llama-3.3-70b-versatile"
+		model = "meta-llama/llama-4-maverick-17b-128e-instruct"
 		baseURL = "https://api.groq.com/openai/v1"
 	}
 
@@ -270,31 +270,34 @@ func getModelChoice(provider string) string {
 		
 	default: // groq
 		fmt.Println("\nAvailable Groq models:")
-		fmt.Println("1. llama-3.3-70b-versatile (default)")
-		fmt.Println("2. llama-3.1-8b-instant")
-		fmt.Println("3. mixtral-8x7b-32768")
-		fmt.Println("4. gemma2-9b-it")
-		fmt.Println("5. Custom model (enter full model name)")
-		fmt.Print("\nSelect model (1-5) or press Enter for default: ")
+		fmt.Println("1. meta-llama/llama-4-maverick-17b-128e-instruct (default)")
+		fmt.Println("2. llama-3.3-70b-versatile")
+		fmt.Println("3. llama-3.1-8b-instant")
+		fmt.Println("4. mixtral-8x7b-32768")
+		fmt.Println("5. gemma2-9b-it")
+		fmt.Println("6. Custom model (enter full model name)")
+		fmt.Print("\nSelect model (1-6) or press Enter for default: ")
 		
 		choice, _ := reader.ReadString('\n')
 		choice = strings.TrimSpace(choice)
 		
 		switch choice {
 		case "", "1":
-			return "llama-3.3-70b-versatile"
+			return "meta-llama/llama-4-maverick-17b-128e-instruct"
 		case "2":
-			return "llama-3.1-8b-instant"
+			return "llama-3.3-70b-versatile"
 		case "3":
-			return "mixtral-8x7b-32768"
+			return "llama-3.1-8b-instant"
 		case "4":
-			return "gemma2-9b-it"
+			return "mixtral-8x7b-32768"
 		case "5":
+			return "gemma2-9b-it"
+		case "6":
 			fmt.Print("Enter custom model name: ")
 			model, _ := reader.ReadString('\n')
 			return strings.TrimSpace(model)
 		default:
-			return "llama-3.3-70b-versatile"
+			return "meta-llama/llama-4-maverick-17b-128e-instruct"
 		}
 	}
 }
