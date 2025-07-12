@@ -29,6 +29,8 @@ type CacheEntry struct {
 type Config struct {
 	GroqAPIKey      string `json:"groq_api_key"`
 	OpenRouterAPIKey string `json:"openrouter_api_key"`
+	DefaultProvider string `json:"default_provider,omitempty"`
+	DefaultModel    string `json:"default_model,omitempty"`
 }
 
 func getConfigDir() string {
@@ -140,19 +142,20 @@ func writeToClipboard(text string) {
 	}
 }
 
-func generateCommand(prompt, provider, apiKey string) (string, error) {
-	var (
-		model   string
-		baseURL string
-	)
+func generateCommand(prompt, provider, apiKey, model string) (string, error) {
+	var baseURL string
 
 	switch provider {
 	case "openrouter":
-		model = "deepseek/deepseek-chat:free"
 		baseURL = "https://openrouter.ai/api/v1"
+		if model == "" {
+			model = "deepseek/deepseek-chat:free"
+		}
 	default: // groq
-		model = "meta-llama/llama-4-maverick-17b-128e-instruct"
 		baseURL = "https://api.groq.com/openai/v1"
+		if model == "" {
+			model = "llama-3.3-70b-versatile"
+		}
 	}
 
 	llm, err := openai.New(
@@ -218,7 +221,7 @@ func testAPIKey(provider, apiKey string) error {
 		model = "deepseek/deepseek-chat:free"
 		baseURL = "https://openrouter.ai/api/v1"
 	default: // groq
-		model = "llama-3.3-70b-specdec"
+		model = "llama-3.3-70b-versatile"
 		baseURL = "https://api.groq.com/openai/v1"
 	}
 
@@ -235,10 +238,73 @@ func testAPIKey(provider, apiKey string) error {
 	return err
 }
 
+func getModelChoice(provider string) string {
+	reader := bufio.NewReader(os.Stdin)
+	
+	switch provider {
+	case "openrouter":
+		fmt.Println("\nAvailable OpenRouter models:")
+		fmt.Println("1. deepseek/deepseek-chat:free (default)")
+		fmt.Println("2. google/gemini-2.0-flash-exp:free")
+		fmt.Println("3. meta-llama/llama-3.2-3b-instruct:free")
+		fmt.Println("4. Custom model (enter full model name)")
+		fmt.Print("\nSelect model (1-4) or press Enter for default: ")
+		
+		choice, _ := reader.ReadString('\n')
+		choice = strings.TrimSpace(choice)
+		
+		switch choice {
+		case "", "1":
+			return "deepseek/deepseek-chat:free"
+		case "2":
+			return "google/gemini-2.0-flash-exp:free"
+		case "3":
+			return "meta-llama/llama-3.2-3b-instruct:free"
+		case "4":
+			fmt.Print("Enter custom model name: ")
+			model, _ := reader.ReadString('\n')
+			return strings.TrimSpace(model)
+		default:
+			return "deepseek/deepseek-chat:free"
+		}
+		
+	default: // groq
+		fmt.Println("\nAvailable Groq models:")
+		fmt.Println("1. llama-3.3-70b-versatile (default)")
+		fmt.Println("2. llama-3.1-8b-instant")
+		fmt.Println("3. mixtral-8x7b-32768")
+		fmt.Println("4. gemma2-9b-it")
+		fmt.Println("5. Custom model (enter full model name)")
+		fmt.Print("\nSelect model (1-5) or press Enter for default: ")
+		
+		choice, _ := reader.ReadString('\n')
+		choice = strings.TrimSpace(choice)
+		
+		switch choice {
+		case "", "1":
+			return "llama-3.3-70b-versatile"
+		case "2":
+			return "llama-3.1-8b-instant"
+		case "3":
+			return "mixtral-8x7b-32768"
+		case "4":
+			return "gemma2-9b-it"
+		case "5":
+			fmt.Print("Enter custom model name: ")
+			model, _ := reader.ReadString('\n')
+			return strings.TrimSpace(model)
+		default:
+			return "llama-3.3-70b-versatile"
+		}
+	}
+}
+
 func main() {
 	if len(os.Args) == 1 {
 		fmt.Println("Missing prompt")
 		fmt.Println("Usage:\tgai [--provider PROVIDER] [PROMPT]")
+		fmt.Println("\tgai config  # Configure default provider and model")
+		fmt.Println("\tgai version # Show version")
 		os.Exit(1)
 	}
 
@@ -247,10 +313,55 @@ func main() {
 		os.Exit(0)
 	}
 
-	provider := "groq"
+	if os.Args[1] == "config" {
+		config, _ := loadConfig()
+		reader := bufio.NewReader(os.Stdin)
+		
+		fmt.Println("\nConfigure default settings")
+		fmt.Println("Current provider:", config.DefaultProvider)
+		fmt.Println("Current model:", config.DefaultModel)
+		
+		fmt.Print("\nSelect default provider (1=groq, 2=openrouter): ")
+		providerChoice, _ := reader.ReadString('\n')
+		providerChoice = strings.TrimSpace(providerChoice)
+		
+		switch providerChoice {
+		case "1":
+			config.DefaultProvider = "groq"
+		case "2":
+			config.DefaultProvider = "openrouter"
+		default:
+			fmt.Println("Invalid choice, keeping current provider")
+		}
+		
+		if providerChoice == "1" || providerChoice == "2" {
+			model := getModelChoice(config.DefaultProvider)
+			config.DefaultModel = model
+			
+			if err := saveConfig(config); err != nil {
+				fmt.Println("Failed to save configuration:", err)
+			} else {
+				fmt.Println("\nConfiguration saved!")
+				fmt.Println("Default provider:", config.DefaultProvider)
+				fmt.Println("Default model:", config.DefaultModel)
+			}
+		}
+		
+		os.Exit(0)
+	}
+
+	config, _ := loadConfig()
+	
+	// Use default provider from config if set, otherwise use "groq"
+	defaultProvider := config.DefaultProvider
+	if defaultProvider == "" {
+		defaultProvider = "groq"
+	}
+	
+	provider := defaultProvider
 
 	// Setup flags after handling version check
-	flag.StringVar(&provider, "provider", "groq", "llm provider: groq or openrouter")
+	flag.StringVar(&provider, "provider", defaultProvider, "llm provider: groq or openrouter")
 	flag.Parse()
 
 	// Remaining args after flag parsing are the prompt tokens
@@ -258,12 +369,14 @@ func main() {
 	if len(promptArgs) == 0 {
 		fmt.Println("Missing prompt")
 		fmt.Println("Usage:\tgai [--provider PROVIDER] [PROMPT]")
+		fmt.Println("\tgai config  # Configure default provider and model")
+		fmt.Println("\tgai version # Show version")
 		os.Exit(1)
 	}
 
-	config, _ := loadConfig()
-
 	var apiKey string
+	var model string
+	needsModelConfig := false
 
 	switch provider {
 	case "openrouter":
@@ -284,9 +397,7 @@ func main() {
 			}
 
 			config.OpenRouterAPIKey = apiKey
-			if err := saveConfig(config); err != nil {
-				fmt.Println("Failed to save OPENROUTER_API_KEY to config file.")
-			}
+			needsModelConfig = true
 		}
 		if apiKey == "" {
 			fmt.Println("OPENROUTER_API_KEY is required. Get one from https://openrouter.ai")
@@ -310,13 +421,24 @@ func main() {
 			}
 
 			config.GroqAPIKey = apiKey
-			if err := saveConfig(config); err != nil {
-				fmt.Println("Failed to save GROQ_API_KEY to config file.")
-			}
+			needsModelConfig = true
 		}
 		if apiKey == "" {
 			fmt.Println("GROQ_API_KEY is required. Get one from https://console.groq.com/keys")
 			os.Exit(1)
+		}
+	}
+
+	// Get model configuration
+	if config.DefaultModel != "" && config.DefaultProvider == provider {
+		model = config.DefaultModel
+	} else if needsModelConfig || config.DefaultProvider != provider || config.DefaultModel == "" {
+		// Ask for model choice when setting up new provider, provider changed, or model not configured
+		model = getModelChoice(provider)
+		config.DefaultProvider = provider
+		config.DefaultModel = model
+		if err := saveConfig(config); err != nil {
+			fmt.Println("Failed to save configuration.")
 		}
 	}
 
@@ -347,7 +469,7 @@ Make sure the command runs on %s shell on %s kernel.
 		return
 	}
 
-	completion, err := generateCommand(prompt, provider, apiKey)
+	completion, err := generateCommand(prompt, provider, apiKey, model)
 	if err != nil {
 		fmt.Println("Failed to generate command", err)
 		os.Exit(1)
