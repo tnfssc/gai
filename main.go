@@ -241,65 +241,23 @@ func testAPIKey(provider, apiKey string) error {
 func getModelChoice(provider string) string {
 	reader := bufio.NewReader(os.Stdin)
 	
+	var defaultModel string
 	switch provider {
 	case "openrouter":
-		fmt.Println("\nAvailable OpenRouter models:")
-		fmt.Println("1. deepseek/deepseek-chat:free (default)")
-		fmt.Println("2. google/gemini-2.0-flash-exp:free")
-		fmt.Println("3. meta-llama/llama-3.2-3b-instruct:free")
-		fmt.Println("4. Custom model (enter full model name)")
-		fmt.Print("\nSelect model (1-4) or press Enter for default: ")
-		
-		choice, _ := reader.ReadString('\n')
-		choice = strings.TrimSpace(choice)
-		
-		switch choice {
-		case "", "1":
-			return "deepseek/deepseek-chat:free"
-		case "2":
-			return "google/gemini-2.0-flash-exp:free"
-		case "3":
-			return "meta-llama/llama-3.2-3b-instruct:free"
-		case "4":
-			fmt.Print("Enter custom model name: ")
-			model, _ := reader.ReadString('\n')
-			return strings.TrimSpace(model)
-		default:
-			return "deepseek/deepseek-chat:free"
-		}
-		
+		defaultModel = "deepseek/deepseek-chat:free"
+		fmt.Printf("\nEnter OpenRouter model ID (default: %s): ", defaultModel)
 	default: // groq
-		fmt.Println("\nAvailable Groq models:")
-		fmt.Println("1. meta-llama/llama-4-maverick-17b-128e-instruct (default)")
-		fmt.Println("2. llama-3.3-70b-versatile")
-		fmt.Println("3. llama-3.1-8b-instant")
-		fmt.Println("4. mixtral-8x7b-32768")
-		fmt.Println("5. gemma2-9b-it")
-		fmt.Println("6. Custom model (enter full model name)")
-		fmt.Print("\nSelect model (1-6) or press Enter for default: ")
-		
-		choice, _ := reader.ReadString('\n')
-		choice = strings.TrimSpace(choice)
-		
-		switch choice {
-		case "", "1":
-			return "meta-llama/llama-4-maverick-17b-128e-instruct"
-		case "2":
-			return "llama-3.3-70b-versatile"
-		case "3":
-			return "llama-3.1-8b-instant"
-		case "4":
-			return "mixtral-8x7b-32768"
-		case "5":
-			return "gemma2-9b-it"
-		case "6":
-			fmt.Print("Enter custom model name: ")
-			model, _ := reader.ReadString('\n')
-			return strings.TrimSpace(model)
-		default:
-			return "meta-llama/llama-4-maverick-17b-128e-instruct"
-		}
+		defaultModel = "meta-llama/llama-4-maverick-17b-128e-instruct"
+		fmt.Printf("\nEnter Groq model ID (default: %s): ", defaultModel)
 	}
+	
+	model, _ := reader.ReadString('\n')
+	model = strings.TrimSpace(model)
+	
+	if model == "" {
+		return defaultModel
+	}
+	return model
 }
 
 func main() {
