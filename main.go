@@ -242,10 +242,105 @@ func testAPIKey(provider, apiKey string) error {
 	return err
 }
 
+func runAgenticLoop(provider, apiKey string) {
+	shell := getShell()
+	kernel := runtime.GOOS
+	reader := bufio.NewReader(os.Stdin)
+	
+	fmt.Println("🤖 Agentic mode activated! I'm ready to help you with tasks.")
+	fmt.Println("Type 'exit' or 'quit' to end the session.")
+	fmt.Println("Type 'clear' to clear the conversation history.")
+	fmt.Println()
+
+	var conversationHistory []string
+
+	for {
+		fmt.Print("💬 You: ")
+		input, err := reader.ReadString('\n')
+		if err != nil {
+			fmt.Println("Error reading input:", err)
+			continue
+		}
+
+		input = strings.TrimSpace(input)
+		if input == "" {
+			continue
+		}
+
+		if input == "exit" || input == "quit" {
+			fmt.Println("👋 Goodbye!")
+			break
+		}
+
+		if input == "clear" {
+			conversationHistory = nil
+			fmt.Println("🧹 Conversation history cleared.")
+			continue
+		}
+
+		// Build the prompt with conversation history
+		var historyText string
+		if len(conversationHistory) > 0 {
+			historyText = "\n<Conversation History>\n" + strings.Join(conversationHistory, "\n") + "\n</Conversation History>\n"
+		}
+
+		prompt := fmt.Sprintf(`
+<Instructions Start>
+You are an intelligent AI agent that can help users with various tasks. You have access to the shell environment and can execute commands.
+
+Your capabilities include:
+- File and directory operations
+- System administration tasks
+- Package management
+- Network operations
+- Text processing and analysis
+- And much more
+
+When the user asks for something that requires action, respond with the appropriate command(s) that can be executed in the %s shell on %s kernel.
+
+If the user asks for information or explanation, provide a helpful response.
+
+You can maintain context across multiple interactions. If the user refers to previous commands or results, use that context.
+
+Always ensure commands are safe and appropriate for the context.
+
+Respond naturally and conversationally, but be concise.
+<Instructions End>
+%s
+
+<User Request>
+%s
+</User Request>
+`, shell, kernel, historyText, input)
+
+		fmt.Print("🤖 AI: ")
+		
+		completion, err := generateCommand(prompt, provider, apiKey)
+		if err != nil {
+			fmt.Printf("❌ Error: %v\n", err)
+			continue
+		}
+
+		fmt.Println(completion)
+		
+		// Add to conversation history
+		conversationHistory = append(conversationHistory, fmt.Sprintf("User: %s", input))
+		conversationHistory = append(conversationHistory, fmt.Sprintf("AI: %s", completion))
+		
+		// Keep only last 10 exchanges to prevent context overflow
+		if len(conversationHistory) > 20 {
+			conversationHistory = conversationHistory[len(conversationHistory)-20:]
+		}
+
+		fmt.Println()
+	}
+}
+
 func main() {
 	if len(os.Args) == 1 {
 		fmt.Println("Missing prompt")
-		fmt.Println("Usage:\tgai [--provider PROVIDER] [PROMPT]")
+		fmt.Println("Usage:\tgai [--provider PROVIDER] [--agentic] [PROMPT]")
+		fmt.Println("        gai [--provider PROVIDER] --agentic")
 		os.Exit(1)
 	}
 
@@ -255,21 +350,116 @@ func main() {
 	}
 
 	provider := "groq"
+	agenticMode := false
 
 	// Setup flags after handling version check
 	flag.StringVar(&provider, "provider", "groq", "llm provider: groq, openrouter, or kimi")
+	flag.BoolVar(&agenticMode, "agentic", false, "enable agentic mode with interactive loop")
 	flag.Parse()
 
 	// Remaining args after flag parsing are the prompt tokens
 	promptArgs := flag.Args()
+	
+	// If agentic mode is enabled and no prompt is provided, start the loop
+	if agenticMode && len(promptArgs) == 0 {
+		// Handle API key setup for agentic mode
+		config, _ := loadConfig()
+		var apiKey string
+
+		switch provider {
+		case "kimi":
+			apiKey = os.Getenv("KIMI_API_KEY")
+			if apiKey == "" {
+				apiKey = config.KimiAPIKey
+			}
+			if apiKey == "" {
+				fmt.Print("KIMI_API_KEY is not set in env or config. Get one from https://openrouter.ai. Please enter your KIMI_API_KEY: ")
+				reader := bufio.NewReader(os.Stdin)
+				inputAPIKey, _ := reader.ReadString('\n')
+				apiKey = strings.TrimSpace(inputAPIKey)
+
+				if err := testAPIKey(provider, apiKey); err != nil {
+					fmt.Println("KIMI_API_KEY is invalid:", err)
+					fmt.Println("Please check your API key or get a new one from https://openrouter.ai")
+					os.Exit(1)
+				}
+
+				config.KimiAPIKey = apiKey
+				if err := saveConfig(config); err != nil {
+					fmt.Println("Failed to save KIMI_API_KEY to config file.")
+				}
+			}
+			if apiKey == "" {
+				fmt.Println("KIMI_API_KEY is required. Get one from https://openrouter.ai")
+				os.Exit(1)
+			}
+		case "openrouter":
+			apiKey = os.Getenv("OPENROUTER_API_KEY")
+			if apiKey == "" {
+				apiKey = config.OpenRouterAPIKey
+			}
+			if apiKey == "" {
+				fmt.Print("OPENROUTER_API_KEY is not set in env or config. Get one from https://openrouter.ai. Please enter your OPENROUTER_API_KEY: ")
+				reader := bufio.NewReader(os.Stdin)
+				inputAPIKey, _ := reader.ReadString('\n')
+				apiKey = strings.TrimSpace(inputAPIKey)
+
+				if err := testAPIKey(provider, apiKey); err != nil {
+					fmt.Println("OPENROUTER_API_KEY is invalid:", err)
+					fmt.Println("Please check your API key or get a new one from https://openrouter.ai")
+					os.Exit(1)
+				}
+
+				config.OpenRouterAPIKey = apiKey
+				if err := saveConfig(config); err != nil {
+					fmt.Println("Failed to save OPENROUTER_API_KEY to config file.")
+				}
+			}
+			if apiKey == "" {
+				fmt.Println("OPENROUTER_API_KEY is required. Get one from https://openrouter.ai")
+				os.Exit(1)
+			}
+		default: // groq
+			apiKey = os.Getenv("GROQ_API_KEY")
+			if apiKey == "" {
+				apiKey = config.GroqAPIKey
+			}
+			if apiKey == "" {
+				fmt.Print("GROQ_API_KEY is not set in env or config. You can get one from https://console.groq.com/keys. Please enter your GROQ_API_KEY: ")
+				reader := bufio.NewReader(os.Stdin)
+				inputAPIKey, _ := reader.ReadString('\n')
+				apiKey = strings.TrimSpace(inputAPIKey)
+
+				if err := testAPIKey(provider, apiKey); err != nil {
+					fmt.Println("GROQ_API_KEY is invalid:", err)
+					fmt.Println("Please check your API key or get a new one from https://console.groq.com/keys")
+					os.Exit(1)
+				}
+
+				config.GroqAPIKey = apiKey
+				if err := saveConfig(config); err != nil {
+					fmt.Println("Failed to save GROQ_API_KEY to config file.")
+				}
+			}
+			if apiKey == "" {
+				fmt.Println("GROQ_API_KEY is required. Get one from https://console.groq.com/keys")
+				os.Exit(1)
+			}
+		}
+
+		runAgenticLoop(provider, apiKey)
+		return
+	}
+
+	// Regular single-shot mode
 	if len(promptArgs) == 0 {
 		fmt.Println("Missing prompt")
-		fmt.Println("Usage:\tgai [--provider PROVIDER] [PROMPT]")
+		fmt.Println("Usage:\tgai [--provider PROVIDER] [--agentic] [PROMPT]")
+		fmt.Println("        gai [--provider PROVIDER] --agentic")
 		os.Exit(1)
 	}
 
 	config, _ := loadConfig()
-
 	var apiKey string
 
 	switch provider {
@@ -374,6 +564,8 @@ When the user asks for something that requires action, respond with the appropri
 If the user asks for information or explanation, provide a helpful response.
 
 Always ensure commands are safe and appropriate for the context.
+
+Respond naturally and conversationally, but be concise.
 <Instructions End>
 
 %s

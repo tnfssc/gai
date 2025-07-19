@@ -57,7 +57,7 @@ export KIMI_API_KEY=your-api-key
 
 ## Usage
 
-### Basic Usage
+### Single-Shot Mode
 
 ```bash
 # Using default provider (Groq)
@@ -68,6 +68,36 @@ export KIMI_API_KEY=your-api-key
 ./gai --provider openrouter create a backup of my documents
 
 # The command is already copied to your clipboard, Ctrl+Shift+V away immediately
+```
+
+### Agentic Mode (Interactive Loop)
+
+```bash
+# Start an interactive session with the AI agent
+./gai --agentic
+
+# Or specify a provider for agentic mode
+./gai --provider kimi --agentic
+```
+
+In agentic mode, you can have a continuous conversation with the AI:
+
+```
+🤖 Agentic mode activated! I'm ready to help you with tasks.
+Type 'exit' or 'quit' to end the session.
+Type 'clear' to clear the conversation history.
+
+💬 You: list all files in the current directory
+🤖 AI: ls -la
+
+💬 You: now show me only the text files
+🤖 AI: ls -la *.txt
+
+💬 You: what's the difference between these commands?
+🤖 AI: The first command `ls -la` shows all files and directories with detailed information including hidden files. The second command `ls -la *.txt` only shows text files that match the pattern *.txt.
+
+💬 You: exit
+👋 Goodbye!
 ```
 
 ### Agentic Capabilities
@@ -81,6 +111,8 @@ gai is now an intelligent AI agent that can:
 - **Network operations**: Handle network-related tasks
 - **Package management**: Assist with software installation and updates
 - **Text processing**: Analyze and transform text data
+- **Maintain context**: Remember previous interactions in agentic mode
+- **Conversational**: Respond naturally and conversationally
 
 ### Using Standard Input
 
@@ -97,6 +129,9 @@ docker run -e GROQ_API_KEY=$GROQ_API_KEY ghcr.io/tnfssc/gai:latest list all file
 
 # Using Kimi
 docker run -e KIMI_API_KEY=$KIMI_API_KEY ghcr.io/tnfssc/gai:latest --provider kimi analyze this system
+
+# Agentic mode in Docker
+docker run -it -e KIMI_API_KEY=$KIMI_API_KEY ghcr.io/tnfssc/gai:latest --provider kimi --agentic
 
 # Copy to clipboard fails if you use Docker
 ```
