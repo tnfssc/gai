@@ -1,6 +1,6 @@
 # gai
 
-⚡ The fastest AI command generator for CLI
+⚡ The fastest AI agent for CLI - powered by intelligent models
 
 [![Release](https://github.com/tnfssc/gai/actions/workflows/release.yml/badge.svg)](https://github.com/tnfssc/gai/actions/workflows/release.yml)
 
@@ -36,32 +36,73 @@ Follow `gai`'s instructions when you use it for the first time
 
 ### Manual
 
-Get your key from [groqcloud](https://console.groq.com/keys)
+Choose your preferred provider:
 
-Add it in your `~/.bashrc` file as follows
+- **Groq**: Get your key from [groqcloud](https://console.groq.com/keys)
+- **OpenRouter**: Get your key from [openrouter.ai](https://openrouter.ai)
+- **Kimi (Kimi-K2)**: Get your key from [openrouter.ai](https://openrouter.ai) (uses openrouter/moonshotai/kimi-k2 model)
+
+Add it to your `~/.bashrc` file as follows:
 
 ```bash
+# For Groq
 export GROQ_API_KEY=your-api-key
+
+# For OpenRouter
+export OPENROUTER_API_KEY=your-api-key
+
+# For Kimi (Kimi-K2)
+export KIMI_API_KEY=your-api-key
 ```
 
 ## Usage
 
+### Basic Usage
+
 ```bash
+# Using default provider (Groq)
 ./gai list all files that contain the word "hello"
-# or
-gai list all files that contain the word "hello" # if installed globally
-# the command is already copied to your clipboard, Ctrl+Shift+V away immediately
+
+# Using specific provider
+./gai --provider kimi analyze this log file for errors
+./gai --provider openrouter create a backup of my documents
+
+# The command is already copied to your clipboard, Ctrl+Shift+V away immediately
 ```
 
-Use standard input
+### Agentic Capabilities
+
+gai is now an intelligent AI agent that can:
+
+- **Execute commands**: Generate and run shell commands
+- **Analyze files**: Process and analyze text, logs, and data
+- **System administration**: Help with system tasks and configuration
+- **File operations**: Manage files and directories efficiently
+- **Network operations**: Handle network-related tasks
+- **Package management**: Assist with software installation and updates
+- **Text processing**: Analyze and transform text data
+
+### Using Standard Input
 
 ```bash
 cat /etc/hosts | gai block youtube.com
+cat logfile.txt | gai --provider kimi find all error messages
 ```
 
-Use Docker
+### Using Docker
 
 ```bash
+# Using Groq
 docker run -e GROQ_API_KEY=$GROQ_API_KEY ghcr.io/tnfssc/gai:latest list all files that contain the word "hello"
+
+# Using Kimi
+docker run -e KIMI_API_KEY=$KIMI_API_KEY ghcr.io/tnfssc/gai:latest --provider kimi analyze this system
+
 # Copy to clipboard fails if you use Docker
 ```
+
+## Supported Providers
+
+- **Groq**: Fast inference with various models
+- **OpenRouter**: Access to multiple AI models
+- **Kimi (Kimi-K2)**: Agentic model from Moonshot AI via OpenRouter

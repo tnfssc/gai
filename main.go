@@ -29,6 +29,7 @@ type CacheEntry struct {
 type Config struct {
 	GroqAPIKey      string `json:"groq_api_key"`
 	OpenRouterAPIKey string `json:"openrouter_api_key"`
+	KimiAPIKey      string `json:"kimi_api_key"`
 }
 
 func getConfigDir() string {
@@ -147,6 +148,9 @@ func generateCommand(prompt, provider, apiKey string) (string, error) {
 	)
 
 	switch provider {
+	case "kimi":
+		model = "openrouter/moonshotai/kimi-k2"
+		baseURL = "https://openrouter.ai/api/v1"
 	case "openrouter":
 		model = "deepseek/deepseek-chat:free"
 		baseURL = "https://openrouter.ai/api/v1"
@@ -214,6 +218,9 @@ func testAPIKey(provider, apiKey string) error {
 	)
 
 	switch provider {
+	case "kimi":
+		model = "openrouter/moonshotai/kimi-k2"
+		baseURL = "https://openrouter.ai/api/v1"
 	case "openrouter":
 		model = "deepseek/deepseek-chat:free"
 		baseURL = "https://openrouter.ai/api/v1"
@@ -250,7 +257,7 @@ func main() {
 	provider := "groq"
 
 	// Setup flags after handling version check
-	flag.StringVar(&provider, "provider", "groq", "llm provider: groq or openrouter")
+	flag.StringVar(&provider, "provider", "groq", "llm provider: groq, openrouter, or kimi")
 	flag.Parse()
 
 	// Remaining args after flag parsing are the prompt tokens
@@ -266,6 +273,32 @@ func main() {
 	var apiKey string
 
 	switch provider {
+	case "kimi":
+		apiKey = os.Getenv("KIMI_API_KEY")
+		if apiKey == "" {
+			apiKey = config.KimiAPIKey
+		}
+		if apiKey == "" {
+			fmt.Print("KIMI_API_KEY is not set in env or config. Get one from https://openrouter.ai. Please enter your KIMI_API_KEY: ")
+			reader := bufio.NewReader(os.Stdin)
+			inputAPIKey, _ := reader.ReadString('\n')
+			apiKey = strings.TrimSpace(inputAPIKey)
+
+			if err := testAPIKey(provider, apiKey); err != nil {
+				fmt.Println("KIMI_API_KEY is invalid:", err)
+				fmt.Println("Please check your API key or get a new one from https://openrouter.ai")
+				os.Exit(1)
+			}
+
+			config.KimiAPIKey = apiKey
+			if err := saveConfig(config); err != nil {
+				fmt.Println("Failed to save KIMI_API_KEY to config file.")
+			}
+		}
+		if apiKey == "" {
+			fmt.Println("KIMI_API_KEY is required. Get one from https://openrouter.ai")
+			os.Exit(1)
+		}
 	case "openrouter":
 		apiKey = os.Getenv("OPENROUTER_API_KEY")
 		if apiKey == "" {
@@ -326,17 +359,28 @@ func main() {
 
 	prompt := fmt.Sprintf(`
 <Instructions Start>
-Only reply with the single line command surrounded by three backticks.
-It must be able to be directly run in the target shell.
-Do not include any other text.
-Make sure the command runs on %s shell on %s kernel.
+You are an intelligent AI agent that can help users with various tasks. You have access to the shell environment and can execute commands.
+
+Your capabilities include:
+- File and directory operations
+- System administration tasks
+- Package management
+- Network operations
+- Text processing and analysis
+- And much more
+
+When the user asks for something that requires action, respond with the appropriate command(s) that can be executed in the %s shell on %s kernel.
+
+If the user asks for information or explanation, provide a helpful response.
+
+Always ensure commands are safe and appropriate for the context.
 <Instructions End>
 
 %s
 
-<Prompt Start>
+<User Request>
 %s
-<Prompt End>
+</User Request>
 `, shell, kernel, stdinText, strings.Join(promptArgs, " "))
 
 	promptHash := hashPrompt(prompt)
